@@ -295,18 +295,27 @@ def append_local_log(cfg: dict[str, Any], payload: dict[str, Any], response: dic
     """
     if not cfg.get("log_locally", True):
         return
-    log_path = os.path.realpath(str(cfg.get("log_path", DEFAULT_LOG_PATH)))
-    os.makedirs(os.path.dirname(log_path), exist_ok=True)
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "payload": payload,
         "response": response,
     }
-    try:
-        with open(log_path, "a", encoding="utf-8") as handle:
-            handle.write(safe_json_dumps(entry) + "\n")
-    except Exception as exc:
-        log(f"warning: local log write failed: {exc}")
+    primary_path = os.path.realpath(str(cfg.get("log_path", DEFAULT_LOG_PATH)))
+    candidates = [primary_path]
+    if primary_path != DEFAULT_LOG_PATH:
+        candidates.append(DEFAULT_LOG_PATH)
+
+    last_error: Exception | None = None
+    for candidate in candidates:
+        try:
+            os.makedirs(os.path.dirname(candidate), exist_ok=True)
+            with open(candidate, "a", encoding="utf-8") as handle:
+                handle.write(safe_json_dumps(entry) + "\n")
+            return
+        except Exception as exc:
+            last_error = exc
+    if last_error is not None:
+        log(f"warning: local log write failed: {last_error}")
 
 
 def print_payload(payload: dict[str, Any], *, mode: str) -> None:
@@ -326,9 +335,9 @@ def append_debug_trace(cfg: dict[str, Any], trace: dict[str, Any]) -> None:
     path = os.path.realpath(str(cfg.get("debug_trace_path", "")))
     if not path:
         return
-    os.makedirs(os.path.dirname(path), exist_ok=True)
     entry = {"timestamp": datetime.now(timezone.utc).isoformat(), **trace}
     try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "a", encoding="utf-8") as handle:
             handle.write(safe_json_dumps(entry) + "\n")
     except Exception as exc:

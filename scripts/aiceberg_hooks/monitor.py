@@ -778,7 +778,10 @@ def main() -> int:
                 "tiny_debug_mode": bool(cfg.get("tiny_debug_mode", False)),
             },
         )
-        cleanup_stale(conn, OPEN_EVENT_TTL_SECONDS)
+        try:
+            cleanup_stale(conn, OPEN_EVENT_TTL_SECONDS)
+        except Exception as exc:
+            log(f"warning: stale cleanup skipped: {exc}")
         if cfg.get("redact_secrets", True):
             preview = {
                 "hook_event_name": hook_name,

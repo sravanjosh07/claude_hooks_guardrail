@@ -6,6 +6,7 @@ import json
 import os
 import sqlite3
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -219,6 +220,54 @@ def resolve_plugin_root() -> str:
     return os.path.realpath(os.path.join(resolve_script_dir(), "..", ".."))
 
 
+def ensure_writable_dir(path: str) -> bool:
+    """Return True when path can be created and written to."""
+    try:
+        os.makedirs(path, exist_ok=True)
+        probe = os.path.join(path, f".write-probe-{os.getpid()}-{int(time.time() * 1000)}")
+        with open(probe, "w", encoding="utf-8") as handle:
+            handle.write("ok")
+        os.remove(probe)
+        return True
+    except Exception:
+        return False
+
+
+def resolve_runtime_state_dir() -> str:
+    """
+    Resolve a writable directory for runtime DB/log state.
+
+    Why: Claude plugin install paths are read-only; hooks need a writable location.
+    """
+    explicit = os.environ.get("AICEBERG_STATE_DIR", "").strip()
+    if explicit and ensure_writable_dir(explicit):
+        return os.path.realpath(explicit)
+
+    candidates: list[str] = []
+    tmp_dir = os.environ.get("TMPDIR", "").strip()
+    if tmp_dir:
+        candidates.append(os.path.join(tmp_dir, "aiceberg-claude-hooks"))
+    candidates.append(os.path.join(tempfile.gettempdir(), "aiceberg-claude-hooks"))
+    candidates.append(os.path.join(os.getcwd(), ".aiceberg-hooks-state"))
+    home = os.environ.get("HOME", "").strip()
+    if home:
+        candidates.append(os.path.join(home, ".aiceberg-claude-hooks"))
+
+    seen: set[str] = set()
+    for candidate in candidates:
+        if not candidate:
+            continue
+        resolved = os.path.realpath(candidate)
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        if ensure_writable_dir(resolved):
+            return resolved
+
+    # Last resort: keep running with cwd path even if not currently writable.
+    return os.path.realpath(os.path.join(os.getcwd(), ".aiceberg-hooks-state"))
+
+
 def parse_dotenv_file(path: str) -> dict[str, str]:
     """Parse .env file into key-value dict."""
     parsed: dict[str, str] = {}
@@ -401,12 +450,13 @@ def load_config() -> dict[str, Any]:
         os.environ.get("AICEBERG_LLM_TRANSCRIPT_LOCAL_ONLY"), bool(cfg.get("llm_transcript_local_only", True))
     )
 
+    state_dir = resolve_runtime_state_dir()
     if not cfg.get("log_path"):
-        cfg["log_path"] = os.path.join(resolve_plugin_root(), "logs", "events.jsonl")
+        cfg["log_path"] = os.path.join(state_dir, "events.jsonl")
     if not cfg.get("db_path"):
-        cfg["db_path"] = DEFAULT_DB_PATH
+        cfg["db_path"] = os.path.join(state_dir, "monitor.db")
     if not cfg.get("debug_trace_path"):
-        cfg["debug_trace_path"] = os.path.join(resolve_plugin_root(), "logs", "debug-trace.jsonl")
+        cfg["debug_trace_path"] = os.path.join(state_dir, "debug-trace.jsonl")
 
     return cfg
 
@@ -416,19 +466,8 @@ def load_config() -> dict[str, Any]:
 # ============================================================================
 
 
-def db_connect(db_path: str) -> sqlite3.Connection:
-    """
-    Connect to SQLite and ensure required schema exists.
-
-    Why: Each hook runs in separate subprocess, so we need durable state storage.
-    Schema tracks:
-      - open_events: INPUT events waiting for OUTPUT
-      - links: Associations (e.g., tool_use_id → event_id)
-      - transcript_cursors: Track which LLM turns we've already processed
-    """
-    resolved = os.path.realpath(db_path)
-    os.makedirs(os.path.dirname(resolved), exist_ok=True)
-    conn = sqlite3.connect(resolved, timeout=5)
+def ensure_db_schema(conn: sqlite3.Connection) -> None:
+    """Ensure required SQLite schema exists."""
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS open_events (
@@ -463,6 +502,44 @@ def db_connect(db_path: str) -> sqlite3.Connection:
         """
     )
     conn.commit()
+
+
+def db_connect(db_path: str) -> sqlite3.Connection:
+    """
+    Connect to SQLite and ensure required schema exists.
+
+    Why: Each hook runs in separate subprocess, so we need durable state storage.
+    Schema tracks:
+      - open_events: INPUT events waiting for OUTPUT
+      - links: Associations (e.g., tool_use_id → event_id)
+      - transcript_cursors: Track which LLM turns we've already processed
+    """
+    candidates: list[str] = []
+    if db_path:
+        candidates.append(db_path)
+    fallback = os.path.join(resolve_runtime_state_dir(), "monitor.db")
+    if not candidates or os.path.realpath(candidates[0]) != os.path.realpath(fallback):
+        candidates.append(fallback)
+
+    last_error: Exception | None = None
+    for candidate in candidates:
+        try:
+            resolved = os.path.realpath(candidate)
+            parent = os.path.dirname(resolved)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            conn = sqlite3.connect(resolved, timeout=5)
+            ensure_db_schema(conn)
+            return conn
+        except Exception as exc:
+            last_error = exc
+            log(f"warning: sqlite path unavailable ({candidate}): {exc}")
+
+    log("warning: falling back to in-memory sqlite (cross-hook correlation limited)")
+    conn = sqlite3.connect(":memory:", timeout=5)
+    ensure_db_schema(conn)
+    if last_error:
+        log(f"warning: last sqlite error: {last_error}")
     return conn
 
 

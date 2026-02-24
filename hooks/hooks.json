@@ -179,32 +179,6 @@
         ]
       }
     ],
-    "WorktreeCreate": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event WorktreeCreate",
-            "timeout": 30,
-            "statusMessage": "Aiceberg: monitoring worktree creation..."
-          }
-        ]
-      }
-    ],
-    "WorktreeRemove": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event WorktreeRemove",
-            "timeout": 30,
-            "statusMessage": "Aiceberg: monitoring worktree removal..."
-          }
-        ]
-      }
-    ],
     "PreCompact": [
       {
         "hooks": [
