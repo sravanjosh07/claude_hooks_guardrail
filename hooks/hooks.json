@@ -1,0 +1,233 @@
+{
+  "hooks": {
+    "Setup": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event Setup",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: monitoring setup event..."
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event SessionStart",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: monitoring session start..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event UserPromptSubmit",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: evaluating prompt safety..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event PreToolUse",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: evaluating tool safety..."
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event PermissionRequest",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: evaluating permission request..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event PostToolUse",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: monitoring tool output..."
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event PostToolUseFailure",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: monitoring tool failure..."
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event Notification",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: monitoring notification..."
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event SubagentStart",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: monitoring subagent start..."
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event SubagentStop",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: evaluating subagent output..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event Stop",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: evaluating final response safety..."
+          }
+        ]
+      }
+    ],
+    "TeammateIdle": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event TeammateIdle",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: monitoring teammate idle..."
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event TaskCompleted",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: evaluating task completion..."
+          }
+        ]
+      }
+    ],
+    "ConfigChange": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event ConfigChange",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: evaluating config change..."
+          }
+        ]
+      }
+    ],
+    "WorktreeCreate": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event WorktreeCreate",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: monitoring worktree creation..."
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event WorktreeRemove",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: monitoring worktree removal..."
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event PreCompact",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: monitoring compaction..."
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/aiceberg_hooks_monitor.py\" --event SessionEnd",
+            "timeout": 30,
+            "statusMessage": "Aiceberg: finalizing session events..."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "base_url": "https://api.test1.aiceberg.ai",
+  "event_url": "",
+  "api_key": "",
+  "profile_id": "",
+  "use_case_id": "",
+  "default_user_id": "cowork_agent",
+  "enabled": true,
+  "mode": "enforce",
+  "fail_open": true,
+  "timeout_seconds": 15,
+  "redact_secrets": true,
+  "forward_to_llm": false,
+  "log_locally": true,
+  "log_path": "",
+  "db_path": "",
+  "max_content_chars": 50000
+}

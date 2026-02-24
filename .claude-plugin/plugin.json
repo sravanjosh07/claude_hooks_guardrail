@@ -1,0 +1,8 @@
+{
+  "name": "aiceberg-claude-hooks-guardrails",
+  "version": "1.0.0",
+  "description": "Hooks-only Aiceberg observability and control for Claude: full lifecycle monitoring with deterministic block/deny decisions.",
+  "author": {
+    "name": "Aiceberg"
+  }
+}
