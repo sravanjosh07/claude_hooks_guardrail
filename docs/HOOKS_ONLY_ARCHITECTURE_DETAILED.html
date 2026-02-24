@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aiceberg Claude Hooks Guardrails - Detailed Architecture</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --ink: #1d2736;
+      --muted: #53627a;
+      --accent: #0f766e;
+      --accent-2: #0b5d56;
+      --line: #d7dfeb;
+      --warn: #a53e00;
+      --ok: #0f6f3e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Source Sans 3", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #f9fbff 0%, #f3f6fc 100%);
+      line-height: 1.5;
+    }
+
+    .wrap {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 28px 20px 56px;
+    }
+
+    h1, h2, h3 { margin: 0 0 10px; }
+    h1 { font-size: 2rem; }
+    h2 { font-size: 1.35rem; margin-top: 24px; }
+    h3 { font-size: 1.05rem; margin-top: 18px; }
+
+    p, li { font-size: 1rem; color: var(--ink); }
+
+    .lead {
+      color: var(--muted);
+      margin-top: 6px;
+      margin-bottom: 18px;
+      max-width: 950px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px;
+      margin: 14px 0;
+      box-shadow: 0 8px 28px rgba(35, 65, 120, 0.06);
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 99px;
+      font-size: 0.82rem;
+      border: 1px solid var(--line);
+      color: var(--accent-2);
+      background: #eef9f8;
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+
+    th, td {
+      text-align: left;
+      border: 1px solid var(--line);
+      padding: 8px;
+      vertical-align: top;
+    }
+
+    th {
+      background: #eef4ff;
+      color: #24344d;
+    }
+
+    code, pre {
+      font-family: "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+      font-size: 0.9rem;
+    }
+
+    pre {
+      background: #0f172a;
+      color: #dbe7ff;
+      padding: 12px;
+      border-radius: 10px;
+      overflow: auto;
+      border: 1px solid #1f2c44;
+    }
+
+    .ok { color: var(--ok); font-weight: 600; }
+    .warn { color: var(--warn); font-weight: 600; }
+    .mono { font-family: "JetBrains Mono", Menlo, Monaco, Consolas, monospace; }
+
+    .diagram {
+      background: #f9fbff;
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      overflow: auto;
+    }
+
+    .footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 640px) {
+      .wrap { padding: 20px 12px 40px; }
+      h1 { font-size: 1.6rem; }
+    }
+  </style>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Aiceberg Claude Hooks Guardrails: Detailed Hooks-Only Architecture</h1>
+    <p class="lead">
+      This document explains the production flow used in this repository: hooks are the control plane,
+      Aiceberg API is the policy engine, and transcript reconstruction provides <span class="mono">agt_llm</span>
+      observability at stop boundaries.
+    </p>
+
+    <div class="card">
+      <h2>1) Runtime Structure</h2>
+      <p>Current runtime is intentionally streamlined to three core modules:</p>
+      <div>
+        <span class="pill">scripts/aiceberg_hooks/monitor.py</span>
+        <span class="pill">scripts/aiceberg_hooks/api.py</span>
+        <span class="pill">scripts/aiceberg_hooks/storage.py</span>
+      </div>
+      <p>Stable wrapper entrypoint:</p>
+      <pre>scripts/aiceberg_hooks_monitor.py -> from aiceberg_hooks import main -> monitor.main()</pre>
+      <p>
+        Why this shape: <span class="ok">simpler navigation</span>, fewer cross-file jumps,
+        and still clean separation (orchestration, payload/API, storage/utils).
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>2) What Claude Exposes vs What It Does Not</h2>
+      <div class="grid">
+        <div>
+          <h3>Exposed hooks (monitor can act immediately)</h3>
+          <ul>
+            <li><span class="mono">UserPromptSubmit</span></li>
+            <li><span class="mono">PreToolUse</span></li>
+            <li><span class="mono">PermissionRequest</span></li>
+            <li><span class="mono">PostToolUse</span>, <span class="mono">PostToolUseFailure</span></li>
+            <li><span class="mono">Stop</span>, <span class="mono">SubagentStop</span>, <span class="mono">SessionEnd</span></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Not directly exposed</h3>
+          <ul>
+            <li>Internal pre-LLM-call hook</li>
+            <li>Internal post-LLM-call hook</li>
+            <li>Mid-generation token stream hook for blocking</li>
+          </ul>
+          <p class="warn">Result: internal LLM call cannot be interrupted before generation via hooks alone.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>3) Hook Control Matrix</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Stage</th>
+            <th>Hook</th>
+            <th>Event(s) sent to Aiceberg</th>
+            <th>Blockable</th>
+            <th>Practical effect</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>User input boundary</td>
+            <td><span class="mono">UserPromptSubmit</span></td>
+            <td><span class="mono">user_agt</span> create</td>
+            <td class="ok">Yes</td>
+            <td>Reject prompt before normal continuation.</td>
+          </tr>
+          <tr>
+            <td>Pre tool execution</td>
+            <td><span class="mono">PreToolUse</span></td>
+            <td><span class="mono">agt_tool</span> / <span class="mono">agt_mem</span> create</td>
+            <td class="ok">Yes</td>
+            <td>Prevent actual tool execution.</td>
+          </tr>
+          <tr>
+            <td>Permission mediation</td>
+            <td><span class="mono">PermissionRequest</span></td>
+            <td>One-shot tool/agent event</td>
+            <td class="ok">Yes</td>
+            <td>Deny permission response.</td>
+          </tr>
+          <tr>
+            <td>Post tool execution</td>
+            <td><span class="mono">PostToolUse</span></td>
+            <td>Update matching tool event</td>
+            <td class="ok">Yes</td>
+            <td>Cannot undo tool run; can stop future flow.</td>
+          </tr>
+          <tr>
+            <td>Tool failure</td>
+            <td><span class="mono">PostToolUseFailure</span></td>
+            <td>Update matching tool event</td>
+            <td>No</td>
+            <td>Observation and cleanup.</td>
+          </tr>
+          <tr>
+            <td>Final boundary</td>
+            <td><span class="mono">Stop</span></td>
+            <td>User output update + transcript <span class="mono">agt_llm</span> turns</td>
+            <td class="ok">Yes</td>
+            <td>Can stop finalization/next continuation.</td>
+          </tr>
+          <tr>
+            <td>Subagent final boundary</td>
+            <td><span class="mono">SubagentStop</span></td>
+            <td>Transcript turns + subagent summary event</td>
+            <td class="ok">Yes</td>
+            <td>Can stop parent flow at subagent boundary.</td>
+          </tr>
+          <tr>
+            <td>Session closure</td>
+            <td><span class="mono">SessionEnd</span></td>
+            <td>Close remaining open events</td>
+            <td>No</td>
+            <td>Cleanup only.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>4) Diagram A: End-to-End Hooks + Decision Path</h2>
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart TD
+  U["User prompt"] --> HP["UserPromptSubmit hook"]
+  HP --> A1["Send user_agt INPUT to Aiceberg"]
+  A1 --> D1{"Decision"}
+  D1 -->|block| BLK1["Return decision:block"]
+  D1 -->|pass| AG["Claude internal reasoning + potential LLM calls"]
+
+  AG --> PT["PreToolUse hook"]
+  PT --> A2["Send agt_tool/agt_mem INPUT"]
+  A2 --> D2{"Decision"}
+  D2 -->|block| BLK2["Deny tool"]
+  D2 -->|pass| TRUN["Tool executes"]
+
+  TRUN --> POST["PostToolUse hook"]
+  POST --> A3["Send OUTPUT update"]
+  A3 --> D3{"Decision"}
+  D3 -->|block| BLK3["Stop downstream flow"]
+  D3 -->|pass| CONT["Continue"]
+
+  AG --> STP["Stop/SubagentStop hook"]
+  STP --> TP["Read transcript_path"]
+  TP --> LLM["Reconstruct agt_llm turns"]
+  LLM --> A4["Send agt_llm events"]
+  A4 --> D4{"Decision"}
+  D4 -->|block| BLK4["Block at boundary"]
+  D4 -->|pass| OUT["Allow final output"]
+
+  OUT --> SEnd["SessionEnd cleanup"]
+        </pre>
+      </div>
+      <p>
+        Key interpretation: LLM generation happens before <span class="mono">Stop</span>. Hooks allow boundary control,
+        not pre-generation interception of internal model calls.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>5) Diagram B: Worked Example ("3+5 then multiply by 2")</h2>
+      <div class="diagram">
+        <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant User
+  participant Claude
+  participant HookMonitor
+  participant Aiceberg
+  participant Tool
+
+  User->>Claude: "Please add 3+5 and then multiply it with 2"
+  Claude->>HookMonitor: UserPromptSubmit(session_id, prompt)
+  HookMonitor->>Aiceberg: user_agt CREATE(input=prompt)
+  Aiceberg-->>HookMonitor: pass/block
+  alt blocked
+    HookMonitor-->>Claude: decision:block
+    Claude-->>User: request blocked
+  else passed
+    HookMonitor-->>Claude: allow
+
+    Claude->>Claude: internal LLM step(s)
+
+    opt tool needed
+      Claude->>HookMonitor: PreToolUse(tool=Bash, input=...)
+      HookMonitor->>Aiceberg: agt_tool CREATE
+      Aiceberg-->>HookMonitor: pass/block
+      alt blocked
+        HookMonitor-->>Claude: deny tool
+      else passed
+        HookMonitor-->>Claude: allow
+        Claude->>Tool: execute
+        Tool-->>Claude: output
+        Claude->>HookMonitor: PostToolUse(tool_use_id, output)
+        HookMonitor->>Aiceberg: agt_tool UPDATE(output)
+        Aiceberg-->>HookMonitor: pass/block
+        alt blocked
+          HookMonitor-->>Claude: decision:block (future flow)
+        else passed
+          HookMonitor-->>Claude: continue
+        end
+      end
+    end
+
+    Claude->>HookMonitor: Stop(transcript_path)
+    HookMonitor->>HookMonitor: parse transcript, build turn list
+    loop each new assistant turn
+      HookMonitor->>Aiceberg: agt_llm CREATE/UPDATE
+      Aiceberg-->>HookMonitor: pass/block
+    end
+
+    HookMonitor->>Aiceberg: user_agt UPDATE(final_output="16")
+    Aiceberg-->>HookMonitor: pass/block
+    alt blocked at stop boundary
+      HookMonitor-->>Claude: decision:block
+      Claude-->>User: finalization blocked
+    else passed
+      HookMonitor-->>Claude: allow
+      Claude-->>User: "16"
+    end
+  end
+        </pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>6) Transcript-Derived <span class="mono">agt_llm</span> Details</h2>
+      <p>
+        The monitor reconstructs LLM turns from transcript JSONL at <span class="mono">Stop/SubagentStop</span>.
+        It stores a cursor in SQLite so only new turns are emitted each time.
+      </p>
+      <pre>{"type":"user","message":{"role":"user","content":"add 3+5 then multiply by 2"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"3+5 is 8, then 8*2 is 16."}]}}</pre>
+      <p>Derived event pair:</p>
+      <ul>
+        <li><span class="mono">agt_llm input</span>: context before assistant turn</li>
+        <li><span class="mono">agt_llm output</span>: assistant turn content</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>7) Operational Notes</h2>
+      <ul>
+        <li>Telemetry-only hooks can be kept local by <span class="mono">AICEBERG_SKIP_TELEMETRY_API_SEND=true</span>.</li>
+        <li>Transcript events can be local-only by <span class="mono">AICEBERG_LLM_TRANSCRIPT_LOCAL_ONLY=true</span>.</li>
+        <li>Debug payload printing: <span class="mono">AICEBERG_PRINT_PAYLOADS=true</span>.</li>
+        <li>Safe local test mode: <span class="mono">AICEBERG_DRY_RUN=true</span> or <span class="mono">AICEBERG_MOCK_MODE=true</span>.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>8) Source Map</h2>
+      <table>
+        <thead>
+          <tr><th>File</th><th>Responsibility</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="mono">scripts/aiceberg_hooks/monitor.py</span></td>
+            <td>Hook dispatch, enforcement decisions, lifecycle orchestration.</td>
+          </tr>
+          <tr>
+            <td><span class="mono">scripts/aiceberg_hooks/api.py</span></td>
+            <td>Payload builders, generic hook specs, API send + local logs/debug trace.</td>
+          </tr>
+          <tr>
+            <td><span class="mono">scripts/aiceberg_hooks/storage.py</span></td>
+            <td>Config loading, SQLite state, transcript helpers, utility dataclasses/functions.</td>
+          </tr>
+          <tr>
+            <td><span class="mono">scripts/aiceberg_hooks_monitor.py</span></td>
+            <td>Stable wrapper entrypoint used by <span class="mono">hooks/hooks.json</span>.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="footer">
+      Tip: If Mermaid diagrams do not render in your browser due to CSP/network policy,
+      the Mermaid source text is still embedded and readable.
+    </p>
+  </div>
+</body>
+</html>

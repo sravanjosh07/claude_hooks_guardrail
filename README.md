@@ -14,6 +14,9 @@ It sends hook event data to Aiceberg, receives a policy verdict, and either allo
 Detailed Strands parity notes are in:
 - `/Users/sravanjosh/Documents/Aiceberg/Claude_agent_new/aiceberg-claude-hooks-guardrails/STRANDS_PARITY_AUDIT.md`
 
+Detailed architecture HTML (with both lifecycle diagrams) is in:
+- `/Users/sravanjosh/Documents/Aiceberg/Claude_agent_new/aiceberg-claude-hooks-guardrails/docs/HOOKS_ONLY_ARCHITECTURE_DETAILED.html`
+
 ## Git Secret Guard
 
 This repo includes:
@@ -38,7 +41,10 @@ pre-commit run --all-files
 ## What Is In This Repo
 
 - `hooks/hooks.json`: hook wiring for all supported events.
-- `scripts/aiceberg_hooks_monitor.py`: main monitor/enforcement engine.
+- `scripts/aiceberg_hooks_monitor.py`: stable wrapper entrypoint.
+- `scripts/aiceberg_hooks/monitor.py`: hook dispatcher and enforcement flow.
+- `scripts/aiceberg_hooks/api.py`: payload building + API send/logging.
+- `scripts/aiceberg_hooks/storage.py`: config loading + SQLite + transcript parsing.
 - `.claude-plugin/plugin.json`: plugin manifest.
 - `.env` / `.env.example`: credentials and runtime flags.
 - `config/config.json`: fallback defaults only.
@@ -205,18 +211,18 @@ So transcript-based LLM guardrails give high observability plus boundary control
    - `AICEBERG_PROFILE_ID`
    - `AICEBERG_USE_CASE_ID`
    - optional `AICEBERG_MODE=enforce` or `observe`
-2. Run local dry-run demo:
+2. Run the single query demo (real-send default):
 
 ```bash
 cd /Users/sravanjosh/Documents/Aiceberg/Claude_agent_new
-python3 /Users/sravanjosh/Documents/Aiceberg/Claude_agent_new/aiceberg-claude-hooks-guardrails/scripts/terminal_cowork_hook_demo.py --safe-only
+python3 /Users/sravanjosh/Documents/Aiceberg/Claude_agent_new/aiceberg-claude-hooks-guardrails/examples/single_query_demo.py --safe-only
 ```
 
-3. Real send mode:
+3. Optional dry-run mode:
 
 ```bash
 cd /Users/sravanjosh/Documents/Aiceberg/Claude_agent_new
-python3 /Users/sravanjosh/Documents/Aiceberg/Claude_agent_new/aiceberg-claude-hooks-guardrails/scripts/terminal_cowork_hook_demo.py --real-send
+python3 /Users/sravanjosh/Documents/Aiceberg/Claude_agent_new/aiceberg-claude-hooks-guardrails/examples/single_query_demo.py --dry-run --safe-only
 ```
 
 ## Useful Runtime Flags

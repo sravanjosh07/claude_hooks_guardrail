@@ -371,7 +371,7 @@ AICEBERG_LLM_TRANSCRIPT_LOCAL_ONLY="true"
 ```bash
 # Test with Python demo first
 cd /Users/sravanjosh/Documents/Aiceberg/Claude_agent_new/aiceberg-claude-hooks-guardrails
-python3 examples/single_query_demo.py --real-send
+python3 examples/single_query_demo.py
 ```
 
 ### 4. Install in Cowork

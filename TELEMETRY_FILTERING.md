@@ -258,7 +258,7 @@ Total: 4 API calls (0 wasted = 0% overhead)
 
 Just run:
 ```bash
-python3 examples/single_query_demo.py --real-send
+python3 examples/single_query_demo.py
 ```
 
 Check your dashboard - no more SessionEnd clutter!

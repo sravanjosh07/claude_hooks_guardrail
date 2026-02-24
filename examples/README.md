@@ -7,14 +7,14 @@ This directory contains examples that mirror the testing patterns from `ab_stran
 ### 1. Python Simulation (No Claude CLI needed)
 
 ```bash
-# Safe queries only (dry run)
+# Safe queries only (real send)
 python3 examples/single_query_demo.py --safe-only
 
-# Include unsafe queries (dry run)
+# Include unsafe queries (real send)
 python3 examples/single_query_demo.py
 
-# Actually send to Aiceberg (requires valid credentials)
-python3 examples/single_query_demo.py --real-send
+# Dry run mode (no network send)
+python3 examples/single_query_demo.py --dry-run
 ```
 
 ### 2. Real Claude CLI Test
@@ -211,8 +211,8 @@ AICEBERG_API_KEY=your-key
 AICEBERG_PROFILE_ID=your-profile
 AICEBERG_USE_CASE_ID=your-use-case
 
-# Run with real send
-python3 examples/single_query_demo.py --real-send
+# Run with real send (default)
+python3 examples/single_query_demo.py
 ```
 
 **Validates:**
@@ -376,7 +376,7 @@ cat logs/debug-trace.jsonl | jq
 
 2. **Try with real credentials:**
    ```bash
-   python3 examples/single_query_demo.py --real-send
+   python3 examples/single_query_demo.py
    ```
 
 3. **Test with actual Claude:**
@@ -397,7 +397,7 @@ For comparison, see these Strands examples:
 |----------------|---------|-------------------|
 | `single_query.py` | Basic single query test | `single_query_demo.py` |
 | `single_query_with_mcp.py` | Query with MCP tools | Real Claude test with MCP |
-| `simple_aiceberg_test.py` | Test Aiceberg integration | `--real-send` mode |
+| `simple_aiceberg_test.py` | Test Aiceberg integration | `single_query_demo.py` (default mode) |
 | `test_termination_reasons.py` | Test different stop reasons | Check transcript parsing |
 | `memory_single_query.py` | Test memory tool classification | Mock test with mem patterns |
 
