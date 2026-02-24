@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Offline secret scan for staged files.
+# Why: Works even when pre-commit/gitleaks cannot be installed due network limits.
+
+RED="$(printf '\033[31m')"
+YELLOW="$(printf '\033[33m')"
+RESET="$(printf '\033[0m')"
+
+fail() {
+  echo "${RED}pre-commit: secret scan failed${RESET}" >&2
+  echo "$1" >&2
+  exit 1
+}
+
+warn() {
+  echo "${YELLOW}pre-commit: $1${RESET}" >&2
+}
+
+staged_files="$(git diff --cached --name-only --diff-filter=ACM)"
+if [[ -z "${staged_files}" ]]; then
+  exit 0
+fi
+
+has_issue="false"
+tmp_report="$(mktemp)"
+trap 'rm -f "${tmp_report}"' EXIT
+
+while IFS= read -r file; do
+  [[ -n "${file}" ]] || continue
+
+  # Read staged content, not working tree content.
+  if ! content="$(git show ":${file}" 2>/dev/null)"; then
+    continue
+  fi
+
+  # 1) Detect explicit API key assignments with non-placeholder values.
+  while IFS= read -r line; do
+    key_val="${line#*=}"
+    key_val="$(printf '%s' "${key_val}" | sed -e 's/^ *//' -e 's/ *$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
+    low="$(printf '%s' "${key_val}" | tr '[:upper:]' '[:lower:]')"
+    if [[ -z "${key_val}" ]]; then
+      continue
+    fi
+    if [[ "${low}" == *"<your_"* || "${low}" == *"your-"* || "${low}" == *"changeme"* || "${low}" == *"example"* ]]; then
+      continue
+    fi
+    printf '%s:%s\n' "${file}" "${line}" >> "${tmp_report}"
+    has_issue="true"
+  done < <(printf '%s\n' "${content}" | rg -n '^(AICEBERG_API_KEY|OPENAI_API_KEY|ANTHROPIC_API_KEY|GITHUB_TOKEN)\s*=' || true)
+
+  # 2) Detect common token/private-key patterns.
+  if printf '%s\n' "${content}" | rg -n -e 'AKIA[0-9A-Z]{16}' \
+      -e 'ghp_[A-Za-z0-9]{30,}' \
+      -e 'github_pat_[A-Za-z0-9_]{20,}' \
+      -e '-----BEGIN (RSA|OPENSSH|EC) PRIVATE KEY-----' \
+      -e 'Authorization:\s*Bearer\s+[A-Za-z0-9._-]{20,}' >/dev/null; then
+    printf '%s:%s\n' "${file}" "matched generic secret/token pattern" >> "${tmp_report}"
+    has_issue="true"
+  fi
+done <<< "${staged_files}"
+
+if [[ "${has_issue}" == "true" ]]; then
+  fail "$(printf 'Potential secret(s) in staged content:\n%s\n\nRemove/redact secrets and re-commit.' "$(cat "${tmp_report}")")"
+fi
+
+warn "secret scan passed"
+exit 0

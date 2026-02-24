@@ -14,6 +14,27 @@ It sends hook event data to Aiceberg, receives a policy verdict, and either allo
 Detailed Strands parity notes are in:
 - `/Users/sravanjosh/Documents/Aiceberg/Claude_agent_new/aiceberg-claude-hooks-guardrails/STRANDS_PARITY_AUDIT.md`
 
+## Git Secret Guard
+
+This repo includes:
+- `.pre-commit-config.yaml` with `gitleaks` (when network/package install is available)
+- `scripts/git-hooks/pre-commit` offline scanner (works without downloads)
+
+Enable repo hook path once:
+
+```bash
+chmod +x scripts/git-hooks/pre-commit
+git config core.hooksPath scripts/git-hooks
+```
+
+Optional (when package/network is available):
+
+```bash
+python3 -m pip install pre-commit
+pre-commit install
+pre-commit run --all-files
+```
+
 ## What Is In This Repo
 
 - `hooks/hooks.json`: hook wiring for all supported events.
